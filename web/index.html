@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="explainmylessonai_mobile">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>explainmylessonai_mobile</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script>
+    // Efek Suara Arcade Interaktif Web Audio API (1:1 persis frontend web explainmylesson)
+    let audioCtx = null;
+    function getAudioContext() {
+      if (audioCtx && audioCtx.state === "closed") audioCtx = null;
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          try { audioCtx = new AudioContextClass(); } catch (e) {}
+        }
+      }
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+
+    const unlockAudio = () => {
+      try {
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+      } catch (e) {}
+    };
+    window.addEventListener("click", unlockAudio, { passive: true, capture: true });
+    window.addEventListener("pointerdown", unlockAudio, { passive: true, capture: true });
+    window.addEventListener("touchstart", unlockAudio, { passive: true, capture: true });
+
+    let lastClickTime = 0;
+    window.playClickSound = function() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = Date.now();
+        if (now - lastClickTime < 40) return;
+        lastClickTime = now;
+        const startTime = ctx.currentTime;
+
+        // 1. Nada pop ceria naik cepat (520Hz -> 1350Hz) - empuk seperti Mario/Nintendo
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(520, startTime);
+        osc.frequency.exponentialRampToValueAtTime(1350, startTime + 0.055);
+
+        gain.gain.setValueAtTime(0.01, startTime);
+        gain.gain.linearRampToValueAtTime(0.38, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.12);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.13);
+
+        // 2. Click snap renyah di awal
+        const snapOsc = ctx.createOscillator();
+        const snapGain = ctx.createGain();
+        snapOsc.type = "triangle";
+        snapOsc.frequency.setValueAtTime(1600, startTime);
+        snapOsc.frequency.exponentialRampToValueAtTime(700, startTime + 0.035);
+
+        snapGain.gain.setValueAtTime(0.25, startTime);
+        snapGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.045);
+
+        snapOsc.connect(snapGain);
+        snapGain.connect(ctx.destination);
+        snapOsc.start(startTime);
+        snapOsc.stop(startTime + 0.05);
+      } catch (e) {}
+    };
+
+    window.playCorrectSound = function() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const startTime = ctx.currentTime;
+        const fanfareNotes = [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98];
+        fanfareNotes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(freq, startTime + idx * 0.065);
+          gain.gain.setValueAtTime(0.001, startTime + idx * 0.065);
+          gain.gain.linearRampToValueAtTime(0.3, startTime + idx * 0.065 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + idx * 0.065 + 0.22);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startTime + idx * 0.065);
+          osc.stop(startTime + idx * 0.065 + 0.24);
+        });
+
+        const chimeTimes = [0.25, 0.38, 0.52];
+        chimeTimes.forEach((t) => {
+          const chimeOsc = ctx.createOscillator();
+          const chimeGain = ctx.createGain();
+          chimeOsc.type = "sine";
+          chimeOsc.frequency.setValueAtTime(2093, startTime + t);
+          chimeGain.gain.setValueAtTime(0.18, startTime + t);
+          chimeGain.gain.exponentialRampToValueAtTime(0.001, startTime + t + 0.35);
+          chimeOsc.connect(chimeGain);
+          chimeGain.connect(ctx.destination);
+          chimeOsc.start(startTime + t);
+          chimeOsc.stop(startTime + t + 0.38);
+        });
+
+        const chordNotes = [523.25, 659.25, 783.99, 1046.5];
+        chordNotes.forEach((f) => {
+          const chordOsc = ctx.createOscillator();
+          const chordGain = ctx.createGain();
+          chordOsc.type = "sine";
+          chordOsc.frequency.setValueAtTime(f, startTime + 0.42);
+          chordGain.gain.setValueAtTime(0.01, startTime + 0.42);
+          chordGain.gain.linearRampToValueAtTime(0.16, startTime + 0.45);
+          chordGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.9);
+          chordOsc.connect(chordGain);
+          chordGain.connect(ctx.destination);
+          chordOsc.start(startTime + 0.42);
+          chordOsc.stop(startTime + 0.92);
+        });
+      } catch (e) {}
+    };
+
+    window.playWrongSound = function() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const startTime = ctx.currentTime;
+        const buzzerTimes = [0, 0.12];
+        buzzerTimes.forEach((delayTime) => {
+          const t = startTime + delayTime;
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc1.type = "sawtooth";
+          osc1.frequency.setValueAtTime(155, t);
+          osc2.type = "square";
+          osc2.frequency.setValueAtTime(116, t);
+          gain.gain.setValueAtTime(0.01, t);
+          gain.gain.linearRampToValueAtTime(0.42, t + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.095);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+          osc1.start(t);
+          osc1.stop(t + 0.1);
+          osc2.start(t);
+          osc2.stop(t + 0.1);
+        });
+
+        const slideTime = startTime + 0.22;
+        const slideOsc = ctx.createOscillator();
+        const slideGain = ctx.createGain();
+        slideOsc.type = "triangle";
+        slideOsc.frequency.setValueAtTime(320, slideTime);
+        slideOsc.frequency.exponentialRampToValueAtTime(120, slideTime + 0.28);
+        slideGain.gain.setValueAtTime(0.01, slideTime);
+        slideGain.gain.linearRampToValueAtTime(0.38, slideTime + 0.02);
+        slideGain.gain.exponentialRampToValueAtTime(0.001, slideTime + 0.3);
+        slideOsc.connect(slideGain);
+        slideGain.connect(ctx.destination);
+        slideOsc.start(slideTime);
+        slideOsc.stop(slideTime + 0.32);
+
+        const wompTime = startTime + 0.45;
+        const wompOsc = ctx.createOscillator();
+        const wompGain = ctx.createGain();
+        wompOsc.type = "sine";
+        wompOsc.frequency.setValueAtTime(110, wompTime);
+        wompOsc.frequency.exponentialRampToValueAtTime(65, wompTime + 0.25);
+        wompGain.gain.setValueAtTime(0.35, wompTime);
+        wompGain.gain.exponentialRampToValueAtTime(0.001, wompTime + 0.28);
+        wompOsc.connect(wompGain);
+        wompGain.connect(ctx.destination);
+        wompOsc.start(wompTime);
+        wompOsc.stop(wompTime + 0.3);
+      } catch (e) {}
+    };
+
+    window.playCoinSound = function() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const startTime = ctx.currentTime;
+        const coinPitches = [987.77, 1318.51, 1760.0, 2093.0];
+        coinPitches.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, startTime + idx * 0.075);
+          gain.gain.setValueAtTime(0.001, startTime + idx * 0.075);
+          gain.gain.linearRampToValueAtTime(0.24, startTime + idx * 0.075 + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + idx * 0.075 + 0.28);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startTime + idx * 0.075);
+          osc.stop(startTime + idx * 0.075 + 0.3);
+        });
+      } catch (e) {}
+    };
+
+    window.playBadgeFanfareSound = function() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const startTime = ctx.currentTime;
+        const melody = [392.0, 523.25, 659.25, 783.99, 1046.5];
+        melody.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(freq, startTime + idx * 0.08);
+          gain.gain.setValueAtTime(0.01, startTime + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0.35, startTime + idx * 0.08 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + idx * 0.08 + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startTime + idx * 0.08);
+          osc.stop(startTime + idx * 0.08 + 0.38);
+        });
+
+        const sparkles = [1567.98, 2093.0, 2637.02];
+        sparkles.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const t = startTime + 0.38 + idx * 0.07;
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.01, t);
+          gain.gain.linearRampToValueAtTime(0.2, t + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.42);
+        });
+      } catch (e) {}
+    };
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
