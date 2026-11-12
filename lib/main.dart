@@ -3,10 +3,15 @@ import 'package:flutter/services.dart';
 import 'providers/app_state.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'services/api_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Auto-detect backend URL: coba emulator (10.0.2.2) dulu, fallback ke IP LAN PC
+  // Ini memastikan reset poin & sinkronisasi bekerja di HP fisik maupun emulator
+  await ApiService.initBaseUrl();
 
   // Set system navigation & status bar style (Dana / Modern Fintech style)
   SystemChrome.setSystemUIOverlayStyle(

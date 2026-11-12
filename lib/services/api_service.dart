@@ -8,20 +8,72 @@ import '../models/quiz.dart';
 class ApiService {
   // Backend Express berjalan di port 4000 (dari backend/server/index.ts)
   // Untuk Android Emulator gunakan 10.0.2.2, untuk Web/Desktop/iOS Simulator gunakan localhost
+  // Untuk HP Fisik (USB/WiFi), set customBaseUrl ke IP LAN PC (misal: http://10.111.10.9:4000)
   static const int port = 4000;
 
-  /// Custom Base URL (misalnya jika menggunakan HP fisik via IP WiFi 192.168.x.x:4000 atau test)
+  /// IP LAN PC kamu — dipakai otomatis saat di HP fisik tidak bisa konek via 10.0.2.2
+  /// Ganti sesuai IP PC kamu (cek dengan: ipconfig | findstr IPv4)
+  static const String _lanIp = '10.111.10.9';
+
+  /// Custom Base URL (misalnya jika menggunakan HP fisik via IP WiFi atau test)
   static String? customBaseUrl;
+
+  /// URL yang sudah terbukti bisa dipakai (di-cache setelah auto-detect berhasil)
+  static String? _resolvedBaseUrl;
 
   static String get baseUrl {
     if (customBaseUrl != null && customBaseUrl!.isNotEmpty) {
       return customBaseUrl!;
     }
+    // Gunakan URL yang sudah di-resolve sebelumnya (hasil auto-detect)
+    if (_resolvedBaseUrl != null) {
+      return _resolvedBaseUrl!;
+    }
     if (kIsWeb) return 'http://localhost:$port';
     if (defaultTargetPlatform == TargetPlatform.android) {
+      // Default ke emulator; auto-detect dilakukan oleh initBaseUrl()
       return 'http://10.0.2.2:$port';
     }
     return 'http://localhost:$port';
+  }
+
+  /// Inisialisasi baseUrl dengan auto-detect: coba 10.0.2.2 (emulator) dulu,
+  /// kalau gagal fallback ke IP LAN PC (untuk HP fisik via USB/WiFi).
+  /// Panggil sekali saat app start (di main.dart / AppState.init).
+  static Future<void> initBaseUrl() async {
+    if (customBaseUrl != null && customBaseUrl!.isNotEmpty) return;
+    if (kIsWeb) {
+      _resolvedBaseUrl = 'http://localhost:$port';
+      return;
+    }
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      _resolvedBaseUrl = 'http://localhost:$port';
+      return;
+    }
+
+    // Coba 10.0.2.2 (Android Emulator)
+    final candidateUrls = [
+      'http://10.0.2.2:$port',
+      'http://$_lanIp:$port',
+    ];
+
+    for (final url in candidateUrls) {
+      try {
+        final uri = Uri.parse('$url/api/system/status');
+        final res = await http.get(uri).timeout(const Duration(milliseconds: 1800));
+        if (res.statusCode == 200) {
+          _resolvedBaseUrl = url;
+          debugPrint('[ApiService] Backend ditemukan di: $url');
+          return;
+        }
+      } catch (_) {
+        debugPrint('[ApiService] Tidak bisa konek ke $url, coba berikutnya...');
+      }
+    }
+
+    // Jika semua gagal, tetap pakai default emulator (offline mode)
+    _resolvedBaseUrl = 'http://10.0.2.2:$port';
+    debugPrint('[ApiService] Semua backend tidak dapat dijangkau, mode offline.');
   }
 
   /// Cek apakah backend server sedang aktif/online
